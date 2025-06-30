@@ -13,8 +13,8 @@ df.columns = df.columns.str.strip().str.lower()
 for col in df.select_dtypes(include=['object']).columns:
     df[col] = df[col].map(lambda x: x.strip() if isinstance(x, str) else x)
 
-# Remover duplicados na coluna 'A'
-df = df.drop_duplicates(subset='A')
+# Remover duplicados na coluna 'codigo'
+df = df.drop_duplicates(subset='codigo')
 
 # Lista de códigos para busca
 codigos = df['codigo'].tolist()
