@@ -1,0 +1,79 @@
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup
+import re
+
+# Ler os códigos de um arquivo excel
+df = pd.read_excel(r"")
+
+# Limpar nomes das colunas
+df.columns = df.columns.str.strip().str.lower()
+
+# Limpar espaços nas células (string)
+for col in df.select_dtypes(include=['object']).columns:
+    df[col] = df[col].map(lambda x: x.strip() if isinstance(x, str) else x)
+
+# Remover duplicados na coluna 'A'
+df = df.drop_duplicates(subset='A')
+
+# Lista de códigos para busca
+codigos = df['codigo'].tolist()
+
+# Funções para extrair dados
+def codigo_existe(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    div = soup.find('div', class_='pesquisa-sem-registros')
+    return div is None  # Se não encontrou a div, código existe
+
+def extrair_preco_antigo(html):
+    regex = r'<span class="old-price">\s*R\$ ([0-9.,]+)\s*</span>'
+    match = re.search(regex, html)
+    if match and match.group(1):
+        preco = match.group(1).replace('.', ',')
+        return "R$ " + preco
+    else:
+        return "Inativo"
+
+def extrair_preco_desconto(html):
+    regex = r'<span class="price-boleto price-cartao">\s*R\$ ([0-9.,]+)\s*</span>'
+    match = re.search(regex, html)
+    if match and match.group(1):
+        preco = match.group(1).replace('.', ',')
+        return "R$ " + preco
+    else:
+        return "Inativo"
+
+# Loop para scraping
+resultados = []
+
+for codigo in codigos:
+    url = f'https://www../busca?q={codigo}'
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        html = response.text
+        
+        if codigo_existe(html):
+            preco_antigo = extrair_preco_antigo(html)
+            preco_desconto = extrair_preco_desconto(html)
+            print(f"Código {codigo} - Preço antigo: {preco_antigo}, Preço com desconto: {preco_desconto}")
+        else:
+            preco_antigo = "Não encontrado"
+            preco_desconto = "Não encontrado"
+            print(f"Código {codigo} não encontrado.")
+    else:
+        preco_antigo = "Erro na página"
+        preco_desconto = "Erro na página"
+        print(f"Erro ao acessar a página do código {codigo}.")
+
+    resultados.append({
+        "codigo": codigo,
+        "preco_antigo": preco_antigo,
+        "preco_desconto": preco_desconto
+    })
+
+# Salvar resultados ---
+df_resultados = pd.DataFrame(resultados)
+df_resultados.to_excel(r"C:", index=False, engine='openpyxl')
+
+print("Resultados salvos em 'resultados.xlsx'")
